@@ -138,7 +138,12 @@ print("ISP Width: ", camRgb.getResolution(),
 rgbOut = pipeline.createXLinkOut()
 print("XLINK fps:", rgbOut.getFpsLimit())
 rgbOut.setStreamName("rgb")
-camRgb.isp.link(rgbOut.input)
+videoEncoder = pipeline.create(dai.node.VideoEncoder)
+camRgb.setFps(30)
+videoEncoder.setDefaultProfilePreset(camRgb.getFps(), dai.VideoEncoderProperties.Profile.MJPEG)
+camRgb.video.link(videoEncoder.input)
+videoEncoder.bitstream.link(rgbOut.input)
+#camRgb.isp.link(rgbOut.input)
 
 
 # # Configure Camera Properties
@@ -463,17 +468,18 @@ async def main():
                     if qRgb.has():
                         n_frames += 1
                         stop_time = time.time_ns()
-                        img = qRgb.get().getCvFrame()
+                        #img = qRgb.get().getCvFrame()
+                        im_buf_arr = qRgb.get().getData()
                         if (stop_time - start_time) / 1e9 > 1:
                             print("FPS: ", n_frames / ((stop_time - start_time) / 1e9))
                             n_frames = 0
                             start_time = time.time_ns()
 
-                        is_success, im_buf_arr = cv2.imencode(".jpg", img)
+                        #is_success, im_buf_arr = cv2.imencode(".jpg", img)
 
                         # read from .jpeg format to buffer of bytes
                         byte_im = im_buf_arr.tobytes()
-
+                        
                         # data must be encoded in base64
                         data = base64.b64encode(byte_im).decode("ascii")
 

@@ -58,10 +58,11 @@ subpixel = True  # True  # Better accuracy for longer distance, fractional dispa
 pipeline = dai.Pipeline()
 
 camRgb = pipeline.createColorCamera()
-camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_4_K)
 camRgb.setBoardSocket(dai.CameraBoardSocket.RGB)
 camRgb.setInterleaved(False)
 camRgb.setIspScale(1, 1)
+camRgb.setFps(30)
 print("ISP Width: ", camRgb.getResolution(),
       "ISP Height: ", camRgb.getResolution())
 
@@ -69,13 +70,13 @@ print("ISP Width: ", camRgb.getResolution(),
 # Create ColorCamera beforehand
 # Set H265 encoding for the ColorCamera video output
 videoEncoder = pipeline.create(dai.node.VideoEncoder)
-videoEncoder.setDefaultProfilePreset(camRgb.getFps(), dai.VideoEncoderProperties.Profile.H265_MAIN)
+videoEncoder.setDefaultProfilePreset(camRgb.getFps(), dai.VideoEncoderProperties.Profile.MJPEG)
 camRgb.video.link(videoEncoder.input)
 
 rgbOut = pipeline.createXLinkOut()
 rgbOut.setStreamName("rgb")
-# videoEncoder.bitstream.link(rgbOut.input)
-camRgb.isp.link(rgbOut.input)
+videoEncoder.bitstream.link(rgbOut.input)
+#camRgb.isp.link(rgbOut.input)
 
 class BinaryOpcode(IntEnum):
     MESSAGE_DATA = 1
@@ -131,7 +132,6 @@ async def main():
         channelid = decoded["subscriptions"][0]["channelId"]
         print(subid)
         print(channelid)
-        
 
         while True:
             # data = conn.recv(1024)
@@ -164,18 +164,19 @@ async def main():
                         if qRgb.has():
                             n_frames += 1
                             stop_time = time.time_ns()
-                            img = qRgb.get().getCvFrame()
+                            #img = qRgb.get().getCvFrame()
+                            img = qRgb.get().getData()
                             if (stop_time - start_time) / 1e9 > 1:
                                 print("FPS: ", n_frames /
                                       ((stop_time - start_time) / 1e9))
                                 n_frames = 0
                                 start_time = time.time_ns()
 
-                            is_success, im_buf_arr = cv2.imencode(".jpg", img)
+                            #is_success, im_buf_arr = cv2.imencode(".jpg", img)
 
                             # read from .jpeg format to buffer of bytes
-                            byte_im = im_buf_arr.tobytes()
-                            # byte_im = img.tobytes()
+                            #byte_im = im_buf_arr.tobytes()
+                            byte_im = img.tobytes()
 
                             # data must be encoded in base64
                             data = base64.b64encode(byte_im).decode("ascii")
@@ -197,6 +198,7 @@ async def main():
                             s.sendall(len(message).to_bytes(
                                 signed=False, byteorder="big", length=4))
                             full_message = MessageDataHeader.pack(BinaryOpcode.MESSAGE_DATA, subid, time.time_ns())
+                            #print("Sending message: ", len(full_message + message))
                             s.sendall(full_message + message)
 
                             # print("
