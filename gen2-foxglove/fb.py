@@ -47,11 +47,11 @@ print(args)
 pipeline = dai.Pipeline()
 
 camRgb = pipeline.createColorCamera()
-camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_4_K)
+camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
 camRgb.setBoardSocket(dai.CameraBoardSocket.RGB)
 camRgb.setInterleaved(False)
 camRgb.setIspScale(1, 1)
-camRgb.setFps(30)
+camRgb.setFps(60)
 print("ISP Width: ", camRgb.getResolution(),
       "ISP Height: ", camRgb.getResolution())
 

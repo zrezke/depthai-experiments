@@ -128,7 +128,7 @@ def get_resolution(width):
 pipeline = dai.Pipeline()
 
 camRgb = pipeline.createColorCamera()
-camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_4_K)
+camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
 camRgb.setBoardSocket(dai.CameraBoardSocket.RGB)
 camRgb.setInterleaved(False)
 camRgb.setIspScale(1, 1)
@@ -139,7 +139,7 @@ rgbOut = pipeline.createXLinkOut()
 print("XLINK fps:", rgbOut.getFpsLimit())
 rgbOut.setStreamName("rgb")
 videoEncoder = pipeline.create(dai.node.VideoEncoder)
-camRgb.setFps(30)
+camRgb.setFps(60)
 videoEncoder.setDefaultProfilePreset(camRgb.getFps(), dai.VideoEncoderProperties.Profile.MJPEG)
 camRgb.video.link(videoEncoder.input)
 videoEncoder.bitstream.link(rgbOut.input)
@@ -491,7 +491,7 @@ async def main():
                                     "data": data,
                                 }
                             ).encode("utf8")
-                        print("Message size: ", len(message), " bytes, MB: ", len(message)/1e6, " MB")
+                        #print("Message size: ", len(message), " bytes, MB: ", len(message)/1e6, " MB")
                         await server.send_message(
                             colorChannel,
                             time.time_ns(),
