@@ -20,6 +20,9 @@ from foxglove_schemas_flatbuffer.RawImage import RawImage as RawImageObj
 import foxglove_schemas_flatbuffer.Time as Time
 from foxglove_schemas_flatbuffer import get_schema
 import foxglove_schemas_flatbuffer.RawImage as RawImage
+import websockets
+from websockets.server import serve, WebSocketServer, WebSocketServerProtocol
+from struct import Struct
 
 # Serialized flatbuffer schema
 schema_data = get_schema("RawImage")
@@ -48,7 +51,7 @@ args = parser.parse_args()
 print(args)
 pipeline = dai.Pipeline()
 
-resolution = (700, 700)
+resolution = (1920, 1080)
 camRgb = pipeline.createColorCamera()
 camRgb.setPreviewSize(resolution)
 camRgb.setBoardSocket(dai.CameraBoardSocket.RGB)
@@ -68,27 +71,25 @@ rgbOut.setStreamName("rgb")
 # camRgb.video.link(videoEncoder.input)
 # videoEncoder.bitstream.link(rgbOut.input)
 camRgb.preview.link(rgbOut.input)
+MessageDataHeader = Struct("<BIQ")
+
+async def send_message_data(
+    connection: WebSocketServerProtocol,
+    timestamp: int,
+    payload: bytes,
+):
+    try:
+        header = MessageDataHeader.pack(
+            1, 0, timestamp
+        )
+        await connection.send([header, payload])
+    except Exception:
+        pass
 
 
 # start server and wait for foxglove connection
 async def main():
-    class Listener(FoxgloveServerListener):
-        def on_subscribe(self, server: FoxgloveServer, channel_id: ChannelId):
-            print("First client subscribed to", channel_id)
-
-        def on_unsubscribe(self, server: FoxgloveServer, channel_id: ChannelId):
-            print("Last client unsubscribed from", channel_id)
-
-    async with FoxgloveServer("0.0.0.0", 8765, "DepthAI server") as server:
-        server.set_listener(Listener())
-
-        colorChannel = await server.add_channel({
-            "topic": "colorImage",
-            "encoding": "flatbuffer",
-            "schemaName": "foxglove.RawImage",
-            "schema": base64.b64encode(get_schema("RawImage")).decode("ascii")
-            }
-        )
+    async with websockets.connect("ws://127.0.0.1:8765", ) as websocket:
 
         seq = 0
         with dai.Device(pipeline) as device:
@@ -153,7 +154,7 @@ async def main():
                         # cv2.imwrite("test.png", im_buf_arr.reshape(
                         #     resolution[1], resolution[0], 3))
                         # exit(0)
-                        await server.send_message(colorChannel, time.time_ns(), msg_data)
+                        await send_message_data(websocket, time.time_ns(), msg_data)
 
                 if cv2.waitKey(1) == "q":
                     break

@@ -20,6 +20,15 @@ from foxglove_schemas_flatbuffer.RawImage import RawImage as RawImageObj
 import foxglove_schemas_flatbuffer.Time as Time
 from foxglove_schemas_flatbuffer import get_schema
 import foxglove_schemas_flatbuffer.RawImage as RawImage
+import websockets
+from websockets.server import serve, WebSocketServer, WebSocketServerProtocol
+from struct import Struct
+import socket
+
+HOST = "localhost"  # Standard loopback interface address (localhost)
+PORT = 9999  # Port to listen on (non-privileged ports are > 1023)
+
+
 
 # Serialized flatbuffer schema
 schema_data = get_schema("RawImage")
@@ -48,47 +57,74 @@ args = parser.parse_args()
 print(args)
 pipeline = dai.Pipeline()
 
-resolution = (700, 700)
+# 4k
+resolution = (1920, 1080)
 camRgb = pipeline.createColorCamera()
 camRgb.setPreviewSize(resolution)
 camRgb.setBoardSocket(dai.CameraBoardSocket.RGB)
-camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
-camRgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
+camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_4_K)
+# camRgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
 camRgb.setFps(60)
 
 print("ISP Width: ", camRgb.getResolution(),
       "ISP Height: ", camRgb.getResolution())
 
+
 rgbOut = pipeline.createXLinkOut()
 print("XLINK fps:", rgbOut.getFpsLimit())
 rgbOut.setStreamName("rgb")
-# videoEncoder = pipeline.create(dai.node.VideoEncoder)
-# videoEncoder.setDefaultProfilePreset(
-#     camRgb.getFps(), dai.VideoEncoderProperties.Profile.MJPEG)
-# camRgb.video.link(videoEncoder.input)
-# videoEncoder.bitstream.link(rgbOut.input)
-camRgb.preview.link(rgbOut.input)
+videoEncoder = pipeline.create(dai.node.VideoEncoder)
+videoEncoder.setDefaultProfilePreset(
+    camRgb.getFps(), dai.VideoEncoderProperties.Profile.MJPEG)
+camRgb.video.link(videoEncoder.input)
+videoEncoder.bitstream.link(rgbOut.input)
+# camRgb.preview.link(rgbOut.input)
+MessageDataHeader = Struct("<BIQ")
+
+async def send_message_data(
+    connection: WebSocketServerProtocol,
+    timestamp: int,
+    payload: bytes,
+):
+    try:
+        header = MessageDataHeader.pack(
+            1, 0, timestamp
+        )
+        await connection.send([header, payload])
+    except Exception:
+        pass
 
 
 # start server and wait for foxglove connection
 async def main():
-    class Listener(FoxgloveServerListener):
-        def on_subscribe(self, server: FoxgloveServer, channel_id: ChannelId):
-            print("First client subscribed to", channel_id)
-
-        def on_unsubscribe(self, server: FoxgloveServer, channel_id: ChannelId):
-            print("Last client unsubscribed from", channel_id)
-
-    async with FoxgloveServer("0.0.0.0", 8765, "DepthAI server") as server:
-        server.set_listener(Listener())
-
-        colorChannel = await server.add_channel({
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((HOST, PORT))
+        s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        new_channel = {
             "topic": "colorImage",
             "encoding": "flatbuffer",
-            "schemaName": "foxglove.RawImage",
-            "schema": base64.b64encode(get_schema("RawImage")).decode("ascii")
-            }
-        )
+            "schemaName": "foxglove.CompressedImage",
+            "id": 1,
+            "schema": base64.b64encode(get_schema("CompressedImage")).decode("ascii")
+        }
+        advertise_channels = {
+            "op": "advertise",
+            "channels": [new_channel], }
+        message = json.dumps(advertise_channels).encode("utf-8")
+        print("Sending advertise: ", len(message))
+        s.sendall(len(message).to_bytes(4, byteorder="big", signed=False))
+        s.sendall(message)
+        msg = s.recv(2048)
+        first_four = msg[:4]
+        print("N Recived: ", struct.unpack(">I", first_four)[0])
+        print("Received: ", msg)
+        # subId and channelid
+        print("Typeof message: ", msg[4:])
+        decoded = json.loads(msg[4:])
+        subid = decoded["subscriptions"][0]["id"]
+        channelid = decoded["subscriptions"][0]["channelId"]
+        print(subid)
+        print(channelid)
 
         seq = 0
         with dai.Device(pipeline) as device:
@@ -129,23 +165,18 @@ async def main():
                         # CompressedImage.StartDataVector(builder, len(data))
                         # data_vector = builder.CreateByteVector(data)
                         data_vector = builder.CreateNumpyVector(im_buf_arr)
-                        # data_vector = builder.EndVector()
-                        bgr = builder.CreateString("rgb8")
+                        jpeg = builder.CreateString("jpeg")
                         frame_id = builder.CreateString("+x")
-
                         timestamp = Time.CreateTime(builder, sec, 1)
 
-                        RawImage.Start(builder)
-                        RawImage.AddTimestamp(builder, timestamp)
-                        RawImage.AddFrameId(builder, frame_id)
-                        RawImage.AddWidth(builder, resolution[0])
-                        RawImage.AddHeight(builder, resolution[1])
-                        RawImage.AddEncoding(builder, bgr)
-                        RawImage.AddStep(builder, resolution[0] * 3)
-                        RawImage.AddData(builder, data_vector)
-                        img = RawImage.End(builder)
+                        CompressedImage.Start(builder)
+                        CompressedImage.AddTimestamp(builder, timestamp)
+                        CompressedImage.AddFrameId(builder, frame_id)
+                        CompressedImage.AddData(builder, data_vector)
+                        CompressedImage.AddFormat(builder, jpeg)
+                        img = CompressedImage.End(builder)
                         builder.Finish(img)
-                        im = RawImageObj.GetRootAsRawImage(builder.Output(), 0)
+                        # im = CompressedImageObj.GetRootAsCompressedImage(builder.Output(), 0)
                         # print("Sent data length: ", cim.Data(0), " Actual: ", data)
                         msg_data = builder.Output()
                         # open("test.bin", "wb").write(im.DataAsNumpy().tobytes())
@@ -153,7 +184,23 @@ async def main():
                         # cv2.imwrite("test.png", im_buf_arr.reshape(
                         #     resolution[1], resolution[0], 3))
                         # exit(0)
-                        await server.send_message(colorChannel, time.time_ns(), msg_data)
+
+                        full_message = MessageDataHeader.pack(1, subid, time.time_ns()) + bytes(msg_data)
+                        s.sendall(len(full_message).to_bytes(
+                                signed=False, byteorder="big", length=4))
+                        # #open("actual_jpg.jpg", "wb").write(bytes(msg_data))
+                        # #open("im_buf_arr.jpg", "wb").write(im_buf_arr.tobytes())
+                        # #open("raw_actual_jpg.bin", "w").write(",".join([str(int(i)) for i in im_buf_arr.tobytes()]))
+                        # #open("jpgtest.jpeg", "wb").write(im.DataAsNumpy().tobytes())
+                        # #break
+                        # #print("Img size B: ", len(im_buf_arr.tobytes()))
+                        # #print("MSG Size B: ", len(full_message))
+                        s.sendall(full_message)
+                        # raw_json = {
+                        #     i: b for i,b in enumerate(bytes(msg_data))
+                        # }
+                        # open("raw_jpg.json", "w").write(json.dumps(raw_json))
+                        # break
 
                 if cv2.waitKey(1) == "q":
                     break

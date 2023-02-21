@@ -180,22 +180,25 @@ async def main():
                         builder = flatbuffers.Builder(5000)
                         # CompressedImage.StartDataVector(builder, len(data))
                         data_vector = builder.CreateByteVector(data)
+                        # data_vector = builder.CreateNumpyVector(im_buf_arr)
                         # data_vector = builder.EndVector()
                         jpeg = builder.CreateString("jpeg")
                         frame_id = builder.CreateString("+x")
-
+                        timestamp = Time.CreateTime(builder, sec, 1)
 
                         CompressedImage.Start(builder)
-                        timestamp = Time.CreateTime(builder, sec, 1)
                         CompressedImage.AddTimestamp(builder, timestamp)
                         CompressedImage.AddFrameId(builder, frame_id)
                         CompressedImage.AddData(builder, data_vector)
                         CompressedImage.AddFormat(builder, jpeg)
                         img = CompressedImage.End(builder)
                         builder.Finish(img)
-                        cim = CompressedImageObj.GetRootAs(builder.Output())
-                        # print("Sent data length: ", cim.Data(0), " Actual: ", data)
+                        cim = CompressedImageObj.GetRootAsCompressedImage(builder.Output())
+                        # print("Sent: ", len(data) / 1e6, " MB")
                         msg_data = builder.Output()
+                        open("raw_actual_jpg.bin", "w").write(",".split(data))
+                        # open("from_fb.jpg", "wb").write(bytes([value for value in json.loads(open("raw_js.json", "r").read()).values()])[13:])
+                        break
                         await server.send_message(colorChannel, time.time_ns(), msg_data)
 
                 if cv2.waitKey(1) == "q":
