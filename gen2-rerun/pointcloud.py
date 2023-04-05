@@ -5,7 +5,7 @@ import cv2
 import asyncio
 import subprocess
 
-subprocess.Popen(["rerun", "--memory-limit", "200MB"])
+subprocess.Popen(["rerun", "--memory-limit", "20MB"])
 
 pipeline = dai.Pipeline()
 lrcheck = True   # Better handling for occlusions
@@ -44,17 +44,17 @@ stereo.initialConfig.setSubpixelFractionalBits(5)
 monoLeft.out.link(stereo.left)
 monoRight.out.link(stereo.right)
 
-config = stereo.initialConfig.get()
-config.postProcessing.speckleFilter.enable = False
-config.postProcessing.speckleFilter.speckleRange = 50
-config.postProcessing.temporalFilter.enable = True
-config.postProcessing.spatialFilter.enable = True
-config.postProcessing.spatialFilter.holeFillingRadius = 2
-config.postProcessing.spatialFilter.numIterations = 1
-config.postProcessing.thresholdFilter.minRange = 400
-config.postProcessing.thresholdFilter.maxRange = 200000
-config.postProcessing.decimationFilter.decimationFactor = 1
-stereo.initialConfig.set(config)
+# config = stereo.initialConfig.get()
+# config.postProcessing.speckleFilter.enable = False
+# config.postProcessing.speckleFilter.speckleRange = 50
+# config.postProcessing.temporalFilter.enable = True
+# config.postProcessing.spatialFilter.enable = True
+# config.postProcessing.spatialFilter.holeFillingRadius = 2
+# config.postProcessing.spatialFilter.numIterations = 1
+# config.postProcessing.thresholdFilter.minRange = 400
+# config.postProcessing.thresholdFilter.maxRange = 200000
+# config.postProcessing.decimationFilter.decimationFactor = 1
+# stereo.initialConfig.set(config)
 
 xout_depth = pipeline.createXLinkOut()
 xout_depth.setStreamName("depth")
@@ -119,18 +119,26 @@ async def main():
         while True:
             if q_depth.has() and q_colorize.has():
                 depth_frame = q_depth.get().getCvFrame()
+                color_frame = cv2.cvtColor(q_colorize.get().getCvFrame(), cv2.COLOR_BGR2RGB)
+                print("Dim: ", color_frame.shape, depth_frame.shape)
+
+                rr.log_image("world/rgb", color_frame)
+                rr.log_depth_image("world/depth", depth_frame, meter=1e3)
                 if xyz is None:
                     xyz = create_xyz(device, depth_frame.shape[1],
                                      depth_frame.shape[0])
                 depth_frame = np.expand_dims(np.array(depth_frame), axis=-1)
                 # To meters and reshape for rerun
                 pcl = (xyz * depth_frame / 1000.0).reshape(-1, 3)
-                colors = cv2.cvtColor(
-                    q_colorize.get().getCvFrame(), cv2.COLOR_BGR2RGB).reshape(-1, 3)
+                colors = color_frame.reshape(-1, 3)
                 rr.log_points("Pointcloud", pcl,
                               colors=colors)
+                
+
 
 if __name__ == "__main__":
     rr.init("Rerun ", spawn=False)
+    # rr.serve()
+    # rr.connect("127.0.0.1:9877")
     rr.connect()
     asyncio.run(main())

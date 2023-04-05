@@ -1,0 +1,178 @@
+{
+  "connections": [
+    {
+      "node1Id": 2,
+      "node1Output": "bitstream",
+      "node1OutputGroup": "",
+      "node2Id": 1,
+      "node2Input": "in",
+      "node2InputGroup": ""
+    },
+    {
+      "node1Id": 0,
+      "node1Output": "video",
+      "node1OutputGroup": "",
+      "node2Id": 2,
+      "node2Input": "in",
+      "node2InputGroup": ""
+    }
+  ],
+  "globalProperties": {
+    "calibData": null,
+    "cameraTuningBlobSize": null,
+    "cameraTuningBlobUri": "",
+    "leonCssFrequencyHz": 700000000.0,
+    "leonMssFrequencyHz": 700000000.0,
+    "pipelineName": null,
+    "pipelineVersion": null,
+    "xlinkChunkSize": -1
+  },
+  "nodes": [
+    [
+      0,
+      {
+        "id": 0,
+        "ioInfo": [
+          [
+            ["", "preview"],
+            {
+              "blocking": false,
+              "group": "",
+              "name": "preview",
+              "queueSize": 8,
+              "type": 0,
+              "waitForMessage": false
+            }
+          ],
+          [
+            ["", "still"],
+            {
+              "blocking": false,
+              "group": "",
+              "name": "still",
+              "queueSize": 8,
+              "type": 0,
+              "waitForMessage": false
+            }
+          ],
+          [
+            ["", "isp"],
+            {
+              "blocking": false,
+              "group": "",
+              "name": "isp",
+              "queueSize": 8,
+              "type": 0,
+              "waitForMessage": false
+            }
+          ],
+          [
+            ["", "video"],
+            {
+              "blocking": false,
+              "group": "",
+              "name": "video",
+              "queueSize": 8,
+              "type": 0,
+              "waitForMessage": false
+            }
+          ],
+          [
+            ["", "raw"],
+            {
+              "blocking": false,
+              "group": "",
+              "name": "raw",
+              "queueSize": 8,
+              "type": 0,
+              "waitForMessage": false
+            }
+          ],
+          [
+            ["", "inputConfig"],
+            {
+              "blocking": false,
+              "group": "",
+              "name": "inputConfig",
+              "queueSize": 8,
+              "type": 3,
+              "waitForMessage": false
+            }
+          ],
+          [
+            ["", "inputControl"],
+            {
+              "blocking": true,
+              "group": "",
+              "name": "inputControl",
+              "queueSize": 8,
+              "type": 3,
+              "waitForMessage": false
+            }
+          ]
+        ],
+        "name": "ColorCamera",
+        "properties": [
+          185, 18, 185, 20, 0, 3, 0, 185, 3, 0, 0, 0, 185, 5, 0, 0, 0, 0, 0,
+          185, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          255, 0, 0, 0, 129, 44, 1, 129, 44, 1, 255, 255, 255, 255, 1, 136, 0,
+          0, 240, 65, 136, 0, 0, 128, 191, 136, 0, 0, 128, 191, 1, 185, 4, 1, 1,
+          1, 1
+        ]
+      }
+    ],
+    [
+      1,
+      {
+        "id": 1,
+        "ioInfo": [
+          [
+            ["", "in"],
+            {
+              "blocking": true,
+              "group": "",
+              "name": "in",
+              "queueSize": 8,
+              "type": 3,
+              "waitForMessage": true
+            }
+          ]
+        ],
+        "name": "XLinkOut",
+        "properties": [185, 3, 136, 0, 0, 128, 191, 189, 3, 114, 103, 98, 0]
+      }
+    ],
+    [
+      2,
+      {
+        "id": 2,
+        "ioInfo": [
+          [
+            ["", "bitstream"],
+            {
+              "blocking": false,
+              "group": "",
+              "name": "bitstream",
+              "queueSize": 8,
+              "type": 0,
+              "waitForMessage": false
+            }
+          ],
+          [
+            ["", "in"],
+            {
+              "blocking": true,
+              "group": "",
+              "name": "in",
+              "queueSize": 4,
+              "type": 3,
+              "waitForMessage": true
+            }
+          ]
+        ],
+        "name": "VideoEncoder",
+        "properties": [185, 10, 0, 30, 0, 0, 0, 4, 95, 0, 0, 136, 0, 0, 240, 65]
+      }
+    ]
+  ]
+}

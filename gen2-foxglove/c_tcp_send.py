@@ -62,7 +62,7 @@ resolution = (1920, 1080)
 camRgb = pipeline.createColorCamera()
 camRgb.setPreviewSize(resolution)
 camRgb.setBoardSocket(dai.CameraBoardSocket.RGB)
-camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_4_K)
+camRgb.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
 # camRgb.setColorOrder(dai.ColorCameraProperties.ColorOrder.RGB)
 camRgb.setFps(60)
 
@@ -176,30 +176,35 @@ async def main():
                         CompressedImage.AddFormat(builder, jpeg)
                         img = CompressedImage.End(builder)
                         builder.Finish(img)
-                        # im = CompressedImageObj.GetRootAsCompressedImage(builder.Output(), 0)
+                        im = CompressedImageObj.GetRootAsCompressedImage(builder.Output(), 0)
                         # print("Sent data length: ", cim.Data(0), " Actual: ", data)
                         msg_data = builder.Output()
+                        # break
                         # open("test.bin", "wb").write(im.DataAsNumpy().tobytes())
                         # open("test2.bin", "wb").write(im_buf_arr.tobytes())
                         # cv2.imwrite("test.png", im_buf_arr.reshape(
                         #     resolution[1], resolution[0], 3))
-                        # exit(0)
 
                         full_message = MessageDataHeader.pack(1, subid, time.time_ns()) + bytes(msg_data)
                         s.sendall(len(full_message).to_bytes(
                                 signed=False, byteorder="big", length=4))
                         # #open("actual_jpg.jpg", "wb").write(bytes(msg_data))
                         # #open("im_buf_arr.jpg", "wb").write(im_buf_arr.tobytes())
-                        # #open("raw_actual_jpg.bin", "w").write(",".join([str(int(i)) for i in im_buf_arr.tobytes()]))
+                        # open("raw_actual_jpg.bin", "w").write(",".join([str(int(i)) for i in im_buf_arr.tobytes()]))
                         # #open("jpgtest.jpeg", "wb").write(im.DataAsNumpy().tobytes())
-                        # #break
-                        # #print("Img size B: ", len(im_buf_arr.tobytes()))
-                        # #print("MSG Size B: ", len(full_message))
+                        #break
+
                         s.sendall(full_message)
+
+                        # print("Img size B: ", len(im_buf_arr.tobytes()))
+                        # print("MSG Size B: ", len(full_message))
                         # raw_json = {
                         #     i: b for i,b in enumerate(bytes(msg_data))
                         # }
                         # open("raw_jpg.json", "w").write(json.dumps(raw_json))
+                        # open("raw_jpg.bin", "w").write(",".join([str(int(i)) for i in bytes(im.DataAsNumpy().tobytes())]))
+                        # open("raw_actual_jpg.bin", "w").write(",".join([str(int(i)) for i in im_buf_arr.tobytes()]))
+                        # open("msg_header.bin", "w").write(",".join([str(int(i)) for i in full_message[:13]]))
                         # break
 
                 if cv2.waitKey(1) == "q":
